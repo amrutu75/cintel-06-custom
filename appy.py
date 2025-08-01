@@ -114,29 +114,29 @@ def server(input, output, session):
 
     @render_plotly
     def tip_perc():
-        from ridgeplot import ridgeplot
-
         dat = tips_data()
         dat["percent"] = dat.tip / dat.total_bill
         yvar = input.tip_perc_y()
-        uvals = dat[yvar].unique()
-        samples = [[dat.percent[dat[yvar] == val]] for val in uvals]
 
-        plt = ridgeplot(
-            samples=samples,
-            labels=uvals,
-            bandwidth=0.01,
-            colorscale="viridis",
-            colormode="row-index",
+        fig = px.histogram(
+            dat,
+            x="percent",
+            color=yvar,
+            nbins=30,
+            barmode="overlay",
+            opacity=0.7,
+            labels={"percent": "Tip Percentage"},
+            title="Distribution of Tip Percentage",
         )
 
-        plt.update_layout(
-            legend=dict(
-                orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5
-            )
+        fig.update_layout(
+            xaxis_tickformat=".0%",
+            legend_title_text=yvar,
+            bargap=0.1,
         )
 
-        return plt
+        return fig
+
 
     @reactive.effect
     @reactive.event(input.reset)
