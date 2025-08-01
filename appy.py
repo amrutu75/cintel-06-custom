@@ -1,21 +1,31 @@
 import faicons as fa
 import plotly.express as px
-import seaborn as sns
+import pandas as pd
+from pathlib import Path
+
 from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_plotly
+import random 
 from datetime import datetime
-import random
-import plotly.graph_objects as go
 
-# Read CVS
-mtcars_df: pd.DataFrame  = pd.read_csv(Path(__file__).parent / "tips.csv")
+# -----------------------------
+# Constants
+# -----------------------------
+UPDATE_INTERVAL_SECS = 1
 
-# Set update interval to 1 second
-UPDATE_INTERVAL_SECS: int = 1
+#Load tips.csv from the same directory as this script
+TIPS_PATH = Path(__file__).parent / "tips.csv"
 
-# Load dataset
-tips = sns.load_dataset("tips")
-bill_rng = (min(tips.total_bill), max(tips.total_bill))
+# -----------------------------
+# Reactive CSV Loader
+# -----------------------------
+@reactive.calc
+def read_tips():
+    return pd.read_csv(TIPS_PATH)
+
+# Load once for min/max bill
+tips_static = pd.read_csv(TIPS_PATH)
+bill_rng = (tips_static.total_bill.min(), tips_static.total_bill.max())
 
 ICONS = {
     "user": fa.icon_svg("user", "regular"),
@@ -86,10 +96,12 @@ app_ui = ui.page_sidebar(
 def server(input, output, session):
     @reactive.calc
     def tips_data():
+        d = read_tips()
         bill = input.total_bill()
-        idx1 = tips.total_bill.between(bill[0], bill[1])
-        idx2 = tips.time.isin(input.time())
-        return tips[idx1 & idx2]
+        idx1 = d.total_bill.between(bill[0], bill[1])
+        idx2 = d.time.isin(input.time())
+        return d[idx1 & idx2]
+
 
     @render.ui
     def total_tippers():
