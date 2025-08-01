@@ -3,8 +3,14 @@ import plotly.express as px
 import seaborn as sns
 from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_plotly
+from datetime import datetime
+import random
+import plotly.graph_objects as go
 
-# Load data and compute static values
+# Set update interval to 1 second
+UPDATE_INTERVAL_SECS: int = 1
+
+# Load dataset
 tips = sns.load_dataset("tips")
 bill_rng = (min(tips.total_bill), max(tips.total_bill))
 
@@ -15,6 +21,7 @@ ICONS = {
     "ellipsis": fa.icon_svg("ellipsis"),
 }
 
+# UI layout
 app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.input_slider("total_bill", "Bill amount", min=bill_rng[0], max=bill_rng[1], value=bill_rng, pre="$"),
@@ -26,6 +33,7 @@ app_ui = ui.page_sidebar(
         ui.value_box("Total tippers", ui.output_ui("total_tippers"), showcase=ICONS["user"]),
         ui.value_box("Average tip", ui.output_ui("average_tip"), showcase=ICONS["wallet"]),
         ui.value_box("Average bill", ui.output_ui("average_bill"), showcase=ICONS["currency-dollar"]),
+        ui.value_box("Live Tip Update", ui.output_ui("live_tip_value"), showcase=ICONS["wallet"]),  # ✅ Added here
         fill=False,
     ),
     ui.layout_columns(
@@ -71,6 +79,7 @@ app_ui = ui.page_sidebar(
     fillable=True,
 )
 
+# Server logic
 def server(input, output, session):
     @reactive.calc
     def tips_data():
@@ -103,9 +112,12 @@ def server(input, output, session):
 
     @render_plotly
     def scatterplot():
+        data = tips_data()
+        if data.empty:
+            return go.Figure()
         color = input.scatter_color()
         return px.scatter(
-            tips_data(),
+            data,
             x="total_bill",
             y="tip",
             color=None if color == "none" else color,
@@ -114,10 +126,9 @@ def server(input, output, session):
 
     @render_plotly
     def tip_perc():
-        dat = tips_data()
+        dat = tips_data().copy()
         dat["percent"] = dat.tip / dat.total_bill
         yvar = input.tip_perc_y()
-
         fig = px.histogram(
             dat,
             x="percent",
@@ -128,15 +139,12 @@ def server(input, output, session):
             labels={"percent": "Tip Percentage"},
             title="Distribution of Tip Percentage",
         )
-
         fig.update_layout(
             xaxis_tickformat=".0%",
             legend_title_text=yvar,
             bargap=0.1,
         )
-
         return fig
-
 
     @reactive.effect
     @reactive.event(input.reset)
@@ -144,5 +152,19 @@ def server(input, output, session):
         ui.update_slider("total_bill", value=bill_rng)
         ui.update_checkbox_group("time", selected=["Lunch", "Dinner"])
 
-app = App(app_ui, server)
+    # ✅ 1-second reactive live data generator
+    @reactive.calc()
+    def reactive_calc_generate_data():
+        reactive.invalidate_later(UPDATE_INTERVAL_SECS)
+        tips_val = round(random.uniform(-20, 35), 2)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return {"tips": tips_val, "timestamp": timestamp}
 
+    # Live tip display
+    @render.ui
+    def live_tip_value():
+        data = reactive_calc_generate_data()
+        return f"Live Tip: {data['tips']} at {data['timestamp']}"
+
+
+app = App(app_ui, server)
