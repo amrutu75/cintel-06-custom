@@ -1,13 +1,12 @@
 import faicons as fa
 import plotly.express as px
-
-# Load data and compute static values
-from shared import app_dir, tips
+import seaborn as sns
 from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_plotly
 
+# Load data and compute static values
+tips = sns.load_dataset("tips")
 bill_rng = (min(tips.total_bill), max(tips.total_bill))
-
 
 ICONS = {
     "user": fa.icon_svg("user", "regular"),
@@ -16,55 +15,28 @@ ICONS = {
     "ellipsis": fa.icon_svg("ellipsis"),
 }
 
-# Add page title and sidebar
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.input_slider(
-            "total_bill",
-            "Bill amount",
-            min=bill_rng[0],
-            max=bill_rng[1],
-            value=bill_rng,
-            pre="$",
-        ),
-        ui.input_checkbox_group(
-            "time",
-            "Food service",
-            ["Lunch", "Dinner"],
-            selected=["Lunch", "Dinner"],
-            inline=True,
-        ),
+        ui.input_slider("total_bill", "Bill amount", min=bill_rng[0], max=bill_rng[1], value=bill_rng, pre="$"),
+        ui.input_checkbox_group("time", "Food service", ["Lunch", "Dinner"], selected=["Lunch", "Dinner"], inline=True),
         ui.input_action_button("reset", "Reset filter"),
         open="desktop",
     ),
     ui.layout_columns(
-        ui.value_box(
-            "Total tippers", ui.output_ui("total_tippers"), showcase=ICONS["user"]
-        ),
-        ui.value_box(
-            "Average tip", ui.output_ui("average_tip"), showcase=ICONS["wallet"]
-        ),
-        ui.value_box(
-            "Average bill",
-            ui.output_ui("average_bill"),
-            showcase=ICONS["currency-dollar"],
-        ),
+        ui.value_box("Total tippers", ui.output_ui("total_tippers"), showcase=ICONS["user"]),
+        ui.value_box("Average tip", ui.output_ui("average_tip"), showcase=ICONS["wallet"]),
+        ui.value_box("Average bill", ui.output_ui("average_bill"), showcase=ICONS["currency-dollar"]),
         fill=False,
     ),
     ui.layout_columns(
-        ui.card(
-            ui.card_header("Tips data"), ui.output_data_frame("table"), full_screen=True
-        ),
+        ui.card(ui.card_header("Tips data"), ui.output_data_frame("table"), full_screen=True),
         ui.card(
             ui.card_header(
                 "Total bill vs tip",
                 ui.popover(
                     ICONS["ellipsis"],
                     ui.input_radio_buttons(
-                        "scatter_color",
-                        None,
-                        ["none", "sex", "smoker", "day", "time"],
-                        inline=True,
+                        "scatter_color", None, ["none", "sex", "smoker", "day", "time"], inline=True
                     ),
                     title="Add a color variable",
                     placement="top",
@@ -95,11 +67,9 @@ app_ui = ui.page_sidebar(
         ),
         col_widths=[6, 6, 12],
     ),
-    ui.include_css(app_dir / "styles.css"),
-    title="Restaurant tipping",
+    title="Mt. Kilimanjaro Restaurant Tipping Dashboard",
     fillable=True,
 )
-
 
 def server(input, output, session):
     @reactive.calc
@@ -150,7 +120,6 @@ def server(input, output, session):
         dat["percent"] = dat.tip / dat.total_bill
         yvar = input.tip_perc_y()
         uvals = dat[yvar].unique()
-
         samples = [[dat.percent[dat[yvar] == val]] for val in uvals]
 
         plt = ridgeplot(
@@ -175,5 +144,5 @@ def server(input, output, session):
         ui.update_slider("total_bill", value=bill_rng)
         ui.update_checkbox_group("time", selected=["Lunch", "Dinner"])
 
-
 app = App(app_ui, server)
+
