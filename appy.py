@@ -7,6 +7,9 @@ from datetime import datetime
 import random
 import plotly.graph_objects as go
 
+# Read CVS
+mtcars_df: pd.DataFrame  = pd.read_csv(Path(__file__).parent / "tips.csv")
+
 # Set update interval to 1 second
 UPDATE_INTERVAL_SECS: int = 1
 
